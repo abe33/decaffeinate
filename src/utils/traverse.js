@@ -95,6 +95,7 @@ const ORDER = {
   ProtoMemberAccessOp: ['expression'],
   Range: ['left', 'right'],
   RegExp: [],
+  HeregExp: [],
   RemOp: ['left', 'right'],
   Rest: ['expression'],
   Return: ['expression'],
