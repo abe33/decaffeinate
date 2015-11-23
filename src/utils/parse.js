@@ -78,6 +78,12 @@ function fixRange(node, map, source) {
       node.range = node.expression.range;
       node.line = node.expression.line;
       node.column = node.expression.column;
+    } else if (node.type === 'SubtractOp') {
+      node.raw = source.slice(node.left.range[0], node.right.range[1]);
+      node.range = [node.left.range[0], node.right.range[1]];
+      node.line = node.left.line;
+      node.column = node.left.column;
+      return;
     } else {
       throw new Error(
         'BUG! Could not fix range for ' + node.type +
