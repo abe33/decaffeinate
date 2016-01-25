@@ -106,15 +106,19 @@ function fixRange(node, map, source) {
       node.range = [node.left.range[0], node.right.range[1]];
       node.line = node.left.line;
       node.column = node.left.column;
-    } else if (node.type === 'LogicalNotOp' && node.expression && node.expression.type === 'InOp') {
+    } else if (node.type === 'LogicalNotOp' /* && node.expression && node.expression.type === 'InOp'*/) {
       // Ignore `not` operator within `in` operator
+      node.raw = node.expression.raw;
+      node.range = node.expression.range;
+      node.line = node.expression.line;
+      node.column = node.expression.column;
       return;
     } else if (fixShorthandThisObjectMember(node)) {
       return;
     } else {
       throw new Error(
         `BUG! Could not fix range for ${node.type}` +
-        ` because it has no raw value`
+        ` because it has no raw value (${node.range}, ${node.raw})`
       );
     }
   }
