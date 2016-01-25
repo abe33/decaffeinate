@@ -1,8 +1,10 @@
 import Scope from './Scope';
 import buildLineAndColumnMap from './buildLineAndColumnMap';
 import findCounterpartCharacter from './findCounterpartCharacter';
+import isExpressionResultUsed from './isExpressionResultUsed';
 import traverse from './traverse';
-import { isBinaryOperator } from './types';
+import wantsToBeStatement from './wantsToBeStatement';
+import { isBinaryOperator, isConditional, isFunctionBody, isShorthandThisObjectMember } from './types';
 import { parse as coffeeScriptParse } from 'coffee-script-redux';
 
 /**
@@ -15,12 +17,27 @@ export default function parse(source) {
   const ast = coffeeScriptParse(source, { raw: true }).toBasicObject();
   const map = buildLineAndColumnMap(source);
 
-  traverse(ast, function(node) {
+  traverse(ast, node => {
+    attachMetadata(node);
     attachScope(node);
     fixRange(node, map, source);
   });
 
   return ast;
+}
+
+/**
+ * @param {Object} node
+ * @private
+ */
+function attachMetadata(node) {
+  if (isConditional(node) && isFunctionBody(node)) {
+    // This conditional is a single-line function that wants to be a statement.
+    node._expression = !wantsToBeStatement(node);
+  } else if (isConditional(node) && isExpressionResultUsed(node)) {
+    // This conditional is used in an expression context, e.g. `a(if b then c)`.
+    node._expression = true;
+  }
 }
 
 /**
@@ -65,7 +82,7 @@ function fixRange(node, map, source) {
   }
 
   if (!('raw' in node)) {
-    if (fixBinaryOperator(node, map, source)) {
+    if (fixBinaryOperator(node, source)) {
       return;
     } else if (parentNode && parentNode.type === 'While' && parentNode.condition === node) {
       // Ignore `while` condition without raw
@@ -89,11 +106,15 @@ function fixRange(node, map, source) {
       node.range = [node.left.range[0], node.right.range[1]];
       node.line = node.left.line;
       node.column = node.left.column;
+    } else if (node.type === 'LogicalNotOp' && node.expression && node.expression.type === 'InOp') {
+      // Ignore `not` operator within `in` operator
+      return;
+    } else if (fixShorthandThisObjectMember(node)) {
       return;
     } else {
       throw new Error(
-        'BUG! Could not fix range for ' + node.type +
-        ' because it has no raw value'
+        `BUG! Could not fix range for ${node.type}` +
+        ` because it has no raw value`
       );
     }
   }
@@ -138,20 +159,19 @@ function rawMatchesRange(node, source) {
 
 /**
  * @param {Object} node
- * @param {LineAndColumnMap} map
  * @param {string} source
  * @returns {boolean}
  * @private
  */
-function fixBinaryOperator(node, map, source) {
+function fixBinaryOperator(node, source) {
   if (!isBinaryOperator(node)) {
     return false;
   }
 
   const { left, right } = node;
 
-  fixBinaryOperator(left, map, source);
-  fixBinaryOperator(right, map, source);
+  fixBinaryOperator(left, source);
+  fixBinaryOperator(right, source);
 
   if (!node.range) {
     node.range = [left.range[0], right.range[1]];
@@ -160,6 +180,31 @@ function fixBinaryOperator(node, map, source) {
   node.raw = source.slice(node.range[0], node.range[1]);
   node.line = left.line;
   node.column = left.column;
+
+  return true;
+}
+
+/**
+ * @param {Object} node
+ * @returns {boolean}
+ */
+function fixShorthandThisObjectMember(node) {
+  if (node.type !== 'String') {
+    return false;
+  }
+
+  const { parentNode } = node;
+
+  if (!isShorthandThisObjectMember(parentNode)) {
+    return false;
+  }
+
+  node.type = 'Identifier';
+  node.raw = node.data;
+  node.range = [
+    parentNode.range[0] + '@'.length,
+    parentNode.range[1]
+  ];
 
   return true;
 }

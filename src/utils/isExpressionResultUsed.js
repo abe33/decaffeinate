@@ -12,11 +12,24 @@ export default function isExpressionResultUsed(node) {
     return false;
   }
 
+  if ('_expression' in node) {
+    return node._expression;
+  }
+
   if (isConsequentOrAlternate(node)) {
     return false;
   }
 
-  const parentNode = node.parentNode;
+  const { parentNode } = node;
+
+  if (!parentNode) {
+    return false;
+  }
+
+  if (parentNode.type === 'AssignOp') {
+    return node === parentNode.expression;
+  }
+
   if (parentNode.type === 'Function' && parentNode.parameters.indexOf(node) >= 0) {
     return false;
   }

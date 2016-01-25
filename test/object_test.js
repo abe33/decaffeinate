@@ -56,7 +56,32 @@ describe('objects', () => {
       b  :  -> false
     `, `
       ({a() { return true; },
-      b() { return false; }});
+      b() { return false; }
+      });
+    `);
+  });
+
+  it('uses computed methods for string keys', () => {
+    check(`
+      {
+        'a': -> b
+      }
+    `, `
+      ({
+        ['a']() { return b; }
+      });
+    `);
+  });
+
+  it('does not use computed properties for string keys with non-function values', () => {
+    check(`
+      {
+        'a': b
+      }
+    `, `
+      ({
+        'a': b
+      });
     `);
   });
 
@@ -97,6 +122,67 @@ describe('objects', () => {
       a {b}, {c}, {d}
     `, `
       a({b}, {c}, {d});
+    `);
+  });
+
+  it('does not add braces to leading arguments in multi-line calls', () => {
+    check(`
+      new a(
+        b: c
+        d
+      )
+    `, `
+      new a(
+        {b: c},
+        d
+      );
+    `);
+  });
+
+  it('does not add braces to trailing arguments in multi-line calls', () => {
+    check(`
+      new a(
+        b
+        c: d
+      )
+    `, `
+      new a(
+        b,
+        {c: d}
+      );
+    `);
+  });
+
+  it('transforms shorthand-this key-values to the appropriate key-value pair', () => {
+    check(`
+      {@a}
+    `, `
+      ({a: this.a});
+    `);
+  });
+
+  it('appends trailing semicolons after multi-line objects correctly', () => {
+    // FIXME: Really, this should have a better result:
+    //
+    //   var a = {
+    //     b: {
+    //       c: d
+    //     }
+    //   };
+    //
+    check(`
+      a =
+        b:
+          c: d
+
+      e = f
+    `, `
+      var a =
+        {b:
+          {c: d}
+        };
+
+      var e = f;
     `);
   });
 });

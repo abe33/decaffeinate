@@ -40,6 +40,7 @@ const ORDER = {
   ArrayInitialiser: ['members'],
   AssignOp: ['assignee', 'expression'],
   BitAndOp: ['left', 'right'],
+  BitNotOp: ['expression'],
   BitOrOp: ['left', 'right'],
   BitXorOp: ['left', 'right'],
   Block: ['statements'],
@@ -75,6 +76,7 @@ const ORDER = {
   JavaScript: [],
   LTEOp: ['left', 'right'],
   LTOp: ['left', 'right'],
+  LeftShiftOp: ['left', 'right'],
   LogicalAndOp: ['left', 'right'],
   LogicalNotOp: ['expression'],
   LogicalOrOp: ['left', 'right'],
@@ -100,6 +102,7 @@ const ORDER = {
   Rest: ['expression'],
   Return: ['expression'],
   SeqOp: ['left', 'right'],
+  SignedRightShiftOp: ['left', 'right'],
   Slice: ['expression', 'left', 'right'],
   SoakedDynamicMemberAccessOp: ['expression', 'indexingExpr'],
   SoakedFunctionApplication: ['function', 'arguments'],
@@ -117,6 +120,7 @@ const ORDER = {
   UnaryNegateOp: ['expression'],
   UnaryPlusOp: ['expression'],
   Undefined: [],
+  UnsignedRightShiftOp: ['left', 'right'],
   While: ['condition', 'body']
 };
 

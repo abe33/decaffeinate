@@ -27,6 +27,14 @@ describe('trimmedNodeRange', function() {
     deepEqual(nodeRange, [4, 13]);
   });
 
+  it('does not identify hash marks in regular expressions as comments and does not confuse with division operator', function() {
+    const source = 'z = y / x\na = /#/';
+    const ast = parse(source);
+    const regExpNode = ast.body.statements[1].expression;
+    const nodeRange = trimmedNodeRange(regExpNode, source);
+    deepEqual(nodeRange, [14, 17]);
+  });
+
   it('does not trim an identifier range', function() {
     const source = 'a';
     const ast = parse(source);
@@ -41,5 +49,21 @@ describe('trimmedNodeRange', function() {
     const callNode = ast.body.statements[0];
     const nodeRange = trimmedNodeRange(callNode, source);
     deepEqual(nodeRange, [0, 15]);
+  });
+
+  it('does not eat into escaped regexes', () => {
+    const source = '"foo".replace(/[a-z\\/]/g, "")';
+    const ast = parse(source);
+    const regexNode = ast.body.statements[0].arguments[0];
+    const nodeRange = trimmedNodeRange(regexNode, source);
+    deepEqual(nodeRange, [14, 24]);
+  });
+
+  it('does not eat into heregexes', () => {
+    const source = '"foo".replace ///\n  foo\n///g, "bar"';
+    const ast = parse(source);
+    const regeexNode = ast.body.statements[0].arguments[0];
+    const nodeRange = trimmedNodeRange(regeexNode, source);
+    deepEqual(nodeRange, [14, 28]);
   });
 });

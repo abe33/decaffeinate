@@ -14,7 +14,7 @@ describe('automatic conversions', function() {
       `, `
         ({
           a: b,
-          /**
+          /*
            * no comma
            */
           c: d
@@ -106,7 +106,8 @@ describe('automatic conversions', function() {
           c: d
         `, `
           ({a: b,
-          c: d});
+          c: d
+          });
         `);
       });
     });
@@ -687,29 +688,6 @@ describe('automatic conversions', function() {
       `, `
          (function() { return 42; }).observes('model');
       `);
-    });
-
-    it('passes regular expressions through as-is', function() {
-      check(`a = /foo\s/`, `var a = /foo\s/;`);
-    });
-
-    it('rewrites block regular expressions as normal regular expressions', function() {
-      check(`
-        a = ///
-          foo .*
-          bar
-        ///
-      `, `
-        var a = /foo.*bar/;
-      `);
-    });
-
-    it('preserves slash escapes in regular expressions', function() {
-      check(`a = /foo\\/bar/`, `var a = /foo\\/bar/;`);
-    });
-
-    it('preserves regular expression flags', function() {
-      check(`a = /a/ig`, `var a = /a/ig;`);
     });
 
     it('preserves typeof operators', function() {

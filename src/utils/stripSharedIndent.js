@@ -1,5 +1,3 @@
-const WHITESPACE = /^\s*$/;
-
 /**
  * Removes indentation shared by all lines.
  *
@@ -7,36 +5,70 @@ const WHITESPACE = /^\s*$/;
  * @returns {string}
  */
 export default function stripSharedIndent(source) {
-  const lines = source.split('\n');
-
-  while (lines.length > 0 && WHITESPACE.test(lines[0])) {
-    lines.shift();
-  }
-  while (lines.length > 0 && WHITESPACE.test(lines[lines.length - 1])) {
-    lines.pop();
-  }
-
-  const minimumIndent = lines.reduce((indent, line) => {
-    if (line.length === 0) {
-      return indent;
-    } else {
-      return Math.min(getIndent(line), indent);
-    }
-  }, Infinity);
-
+  const indents = getIndentInfo(source);
+  const minimumIndent = sharedIndentSize(indents.ranges);
+  const lines = source.slice(indents.leadingMargin, source.length - indents.trailingMargin).split('\n');
   return lines.map(line => line.slice(minimumIndent)).join('\n');
 }
 
 /**
- * Determines the indentation in number of spaces of a line.
- *
- * @param {string} line
+ * @param {string} source
+ * @param {number=} start
+ * @param {number=} end
+ * @returns {{leadingMargin: number, trailingMargin: number, ranges: Array<Array<number>>}}
+ */
+export function getIndentInfo(source, start=0, end=source.length) {
+  const ranges = [];
+
+  let leadingMargin = 0;
+  while (source[start + leadingMargin] === ' ') {
+    leadingMargin += ' '.length;
+  }
+  if (source[start + leadingMargin] === '\n') {
+    leadingMargin += '\n'.length;
+    start += leadingMargin;
+  }
+
+  let trailingMargin = 0;
+  while (source[end - trailingMargin - ' '.length] === ' ') {
+    trailingMargin += ' '.length;
+  }
+  if (source[end - trailingMargin - '\n'.length] === '\n') {
+    trailingMargin += '\n'.length;
+    end -= trailingMargin;
+  }
+
+  for (let index = start; index < end; index++) {
+    if (index === start || source[index - 1] === '\n') {
+      if (source[index] !== '\n') {
+        let start = index;
+        while (source[index] === ' ') {
+          index++;
+        }
+        ranges.push([start, index]);
+      }
+    }
+  }
+
+  return {
+    leadingMargin,
+    trailingMargin,
+    ranges
+  };
+}
+
+/**
+ * @param {Array<Array<number>>} ranges
  * @returns {number}
  */
-function getIndent(line) {
-  let index = 0;
-  while (line[index] === ' ') {
-    index++;
-  }
-  return index;
+export function sharedIndentSize(ranges) {
+  let size = null;
+
+  ranges.forEach(([start, end]) => {
+    if (size === null || (start !== end && end - start < size)) {
+      size = end - start;
+    }
+  });
+
+  return size === null ? 0 : size;
 }

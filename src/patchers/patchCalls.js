@@ -1,7 +1,9 @@
+import appendToNode from '../utils/appendToNode';
 import getIndent from '../utils/getIndent';
 import isImplicitObject from '../utils/isImplicitObject';
 import rangeIncludingParentheses from '../utils/rangeIncludingParentheses';
 import trimmedNodeRange from '../utils/trimmedNodeRange';
+import { getNodeEnd } from '../utils/nodeEnd';
 
 /**
  * Adds tokens necessary to open a function call.
@@ -56,7 +58,7 @@ export function patchCallOpening(node, patcher) {
       if (callee.line === lastArgument.line) {
         patcher.overwrite(
           callee.range[1],
-          firstArgument.range[0],
+          rangeIncludingParentheses(firstArgument.range, patcher.original)[0],
           isImplicitObject(firstArgument, patcher.original) ? '({' : '('
         );
       } else {
@@ -118,15 +120,19 @@ export function patchCallClosing(node, patcher) {
       const lastArgumentRange = trimmedNodeRange(lastArgument, patcher.original);
 
       if (callee.line === lastArgument.line) {
-        patcher.insert(
-          lastArgumentRange[1],
-          isImplicitObject(lastArgument, patcher.original) ? '})' : ')'
+        appendToNode(
+          lastArgument,
+          patcher,
+          isImplicitObject(lastArgument, patcher.original) ? '})' : ')',
+          Math.max(lastArgumentRange[1], getNodeEnd(lastArgument))
         );
       } else {
         const indent = getIndent(patcher.original, callee.range[1]);
-        patcher.insert(
-          lastArgumentRange[1],
-          isImplicitObject(lastArgument, patcher.original) ? `\n${indent}})` : `\n${indent})`
+        appendToNode(
+          lastArgument,
+          patcher,
+          isImplicitObject(lastArgument, patcher.original) ? `\n${indent}})` : `\n${indent})`,
+          Math.max(lastArgumentRange[1], getNodeEnd(lastArgument))
         );
       }
     }
@@ -139,6 +145,6 @@ export function patchCallClosing(node, patcher) {
  * @returns {boolean}
  */
 function callHasParentheses(callee, source) {
-  const calleeRangeIncludingParentheses = rangeIncludingParentheses(callee, source);
+  const calleeRangeIncludingParentheses = rangeIncludingParentheses(callee.range, source);
   return source[calleeRangeIncludingParentheses[1]] === '(';
 }

@@ -1,5 +1,6 @@
 import isExpressionResultUsed from '../utils/isExpressionResultUsed';
 import isImplicitlyReturned from '../utils/isImplicitlyReturned';
+import { isStaticMethod } from '../utils/types';
 
 /**
  * Determines whether a node should have a semicolon after it.
@@ -51,7 +52,6 @@ export default function shouldHaveTrailingSemicolon(node) {
   switch (node.type) {
     case 'Block':
     case 'ClassProtoAssignOp':
-    case 'Conditional':
     case 'Constructor':
     case 'ForIn':
     case 'ForOf':
@@ -61,8 +61,14 @@ export default function shouldHaveTrailingSemicolon(node) {
     case 'Switch':
       return false;
 
+    case 'Conditional':
+      return isExpressionResultUsed(node);
+
     case 'Class':
       return !node.nameAssignee || isImplicitlyReturned(node);
+
+    case 'AssignOp':
+      return !isStaticMethod(node);
 
     default:
       return true;

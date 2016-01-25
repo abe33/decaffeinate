@@ -1,5 +1,6 @@
 import MagicString from 'magic-string';
 import parse from './utils/parse';
+import patchBoolean from './patchers/patchBoolean';
 import patchCommas from './patchers/patchCommas';
 import patchComments from './patchers/patchComments';
 import patchDeclarations from './patchers/patchDeclarations';
@@ -13,6 +14,7 @@ import patchReturns from './patchers/patchReturns';
 import patchSemicolons from './patchers/patchSemicolons';
 import patchSequences from './patchers/patchSequences';
 import patchStringInterpolation from './patchers/patchStringInterpolation';
+import patchString from './patchers/patchString';
 import patchThis from './patchers/patchThis';
 import preprocessBinaryExistentialOperator from './preprocessors/preprocessBinaryExistentialOperator';
 import preprocessChainedComparison from './preprocessors/preprocessChainedComparison';
@@ -37,7 +39,7 @@ import { patchConditionalStart, patchConditionalEnd } from './patchers/patchCond
 import { patchExistentialOperatorStart, patchExistentialOperatorEnd } from './patchers/patchExistentialOperator';
 import { patchForStart, patchForEnd } from './patchers/patchFor';
 import { patchFunctionStart, patchFunctionEnd } from './patchers/patchFunctions';
-import { patchObjectBraceOpening, patchObjectBraceClosing } from './patchers/patchObjectBraces';
+import { patchObjectStart, patchObjectEnd } from './patchers/patchObject';
 import { patchRestStart, patchRestEnd } from './patchers/patchRest';
 import { patchSliceStart, patchSliceEnd } from './patchers/patchSlice';
 import { patchSpreadStart, patchSpreadEnd } from './patchers/patchSpread';
@@ -45,6 +47,8 @@ import { patchSwitchStart, patchSwitchEnd } from './patchers/patchSwitch';
 import { patchThrowStart, patchThrowEnd } from './patchers/patchThrow';
 import { patchTryStart, patchTryEnd } from './patchers/patchTry';
 import { patchWhileStart, patchWhileEnd } from './patchers/patchWhile';
+
+export { default as run } from './cli';
 
 /**
  * Decaffeinate CoffeeScript source code by adding optional punctuation.
@@ -86,19 +90,25 @@ export function convert(source) {
   }
 
   traverse(ast, (node, descend) => {
+    if (node._rewritten) {
+      return;
+    }
+
+    patchReturns(node, patcher);
     patchConditionalStart(node, patcher);
     patchWhileStart(node, patcher);
     patchRegularExpressions(node, patcher);
-    patchReturns(node, patcher);
     patchOf(node, patcher);
     patchKeywords(node, patcher);
     patchThis(node, patcher);
+    patchBoolean(node, patcher);
     patchPrototypeAccess(node, patcher);
     patchStringInterpolation(node, patcher);
+    patchString(node, patcher);
     patchForStart(node, patcher);
     patchSliceStart(node, patcher);
     patchCallOpening(node, patcher);
-    patchObjectBraceOpening(node, patcher);
+    patchObjectStart(node, patcher);
     patchDeclarations(node, patcher);
     patchFunctionStart(node, patcher);
     patchClassStart(node, patcher);
@@ -120,8 +130,7 @@ export function convert(source) {
     patchFunctionEnd(node, patcher);
     patchClassEnd(node, patcher);
     patchForEnd(node, patcher);
-    patchObjectBraceClosing(node, patcher);
-    patchConditionalEnd(node, patcher);
+    patchObjectEnd(node, patcher);
     patchSliceEnd(node, patcher);
     patchCallClosing(node, patcher);
     patchSemicolons(node, patcher);
@@ -130,6 +139,7 @@ export function convert(source) {
     patchSpreadEnd(node, patcher);
     patchSwitchEnd(node, patcher);
     patchRestEnd(node, patcher);
+    patchConditionalEnd(node, patcher);
   });
 
   patchComments(patcher);

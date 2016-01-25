@@ -1,9 +1,10 @@
 import appendClosingBrace from '../utils/appendClosingBrace';
+import appendToNode from '../utils/appendToNode';
 import isMultiline from '../utils/isMultiline';
 import isStatement from '../utils/isStatement';
-import shouldHaveTrailingSemicolon from '../utils/shouldHaveTrailingSemicolon';
 import trimmedNodeRange from '../utils/trimmedNodeRange';
-import { isFunction } from '../utils/types';
+import wantsToBeStatement from '../utils/wantsToBeStatement';
+import { isFunction, isStaticMethod } from '../utils/types';
 
 /**
  * Patches the start of arrow functions to make them into JavaScript functions.
@@ -31,6 +32,12 @@ export function patchFunctionStart(node, patcher) {
       }
       break;
 
+    case 'AssignOp':
+      if (isStaticMethod(node)) {
+        patchConciseUnboundFunctionStart(node, patcher);
+      }
+      break;
+
     case 'Constructor':
       patchConciseUnboundFunctionStart(node, patcher);
       break;
@@ -44,8 +51,11 @@ export function patchFunctionStart(node, patcher) {
  * @returns {boolean}
  */
 function isMethodDeclaration(node) {
-  return isFunction(node) &&
-    (node.parentNode.type === 'ClassProtoAssignOp' || node.parentNode.type === 'Constructor');
+  return isFunction(node) && (
+    node.parentNode.type === 'ClassProtoAssignOp' ||
+    node.parentNode.type === 'Constructor' ||
+    isStaticMethod(node.parentNode)
+  );
 }
 
 /**
@@ -68,12 +78,13 @@ function isConciseObjectMethod(node) {
 function patchUnboundFunctionStart(node, patcher, concise=false) {
   const start = node.range[0];
   const fn = concise ? '' : 'function';
-  if (patcher.slice(start, start + 2) === '->') {
+  const source = patcher.original;
+  if (source.slice(start, start + 2) === '->') {
     patcher.overwrite(start, start + 2, `${isStatement(node) ? '(' : ''}${fn}() {`);
   } else {
     patcher.insert(start, isStatement(node) ? `(${fn}` : fn);
 
-    let arrowStart = patcher.original.indexOf('->', start);
+    let arrowStart = source.indexOf('->', start);
 
     if (arrowStart < 0) {
       throw new Error(
@@ -93,16 +104,18 @@ function patchUnboundFunctionStart(node, patcher, concise=false) {
  * @param {MagicString} patcher
  */
 function patchBoundFunctionStart(node, patcher) {
-  if (patcher.slice(node.range[0], node.range[0] + 1) !== '(') {
+  const source = patcher.original;
+
+  if (source.slice(node.range[0], node.range[0] + 1) !== '(') {
     patcher.insert(node.range[0], '() ');
   }
 
-  if (node.body.type === 'Block') {
+  if (node.body.type === 'Block' || wantsToBeStatement(node.body)) {
     let arrowStart = node.parameters.length > 0 ?
       node.parameters[node.parameters.length - 1].range[1] :
       node.range[0];
 
-    arrowStart = patcher.original.indexOf('=>', arrowStart);
+    arrowStart = source.indexOf('=>', arrowStart);
 
     if (arrowStart < 0) {
       throw new Error(
@@ -167,19 +180,20 @@ export function patchFunctionEnd(node, patcher) {
 
     if (node.type === 'Function' && isStatement(node)) {
       functionClose += ')';
-    } else if (node.type === 'BoundFunction' && node.body.type === 'SeqOp') {
-      // Wrap sequences in parens, e.g. `a; b` becomes `(a, b)`.
-      functionClose += ')';
+    } else if (node.type === 'BoundFunction') {
+      if (node.body.type === 'SeqOp') {
+        // Wrap sequences in parens, e.g. `a; b` becomes `(a, b)`.
+        functionClose += ')';
+      } else if (wantsToBeStatement(node.body)) {
+        functionClose += ' }';
+      }
     }
 
-    if (shouldHaveTrailingSemicolon(node)) {
-      // Handle the closing semicolon here because otherwise it's difficult to
-      // reproduce the insertion position in `patchSemicolons`.
-      functionClose += ';';
-    }
-
-    if (functionClose) {
-      patcher.insert(insertionPoint, functionClose);
-    }
+    appendToNode(
+      node,
+      patcher,
+      functionClose,
+      insertionPoint
+    );
   }
 }
